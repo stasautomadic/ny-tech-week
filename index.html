@@ -124,18 +124,31 @@ function parseTime(timeStr) {
 function parseTimeRange(timeStr) {
   if (!timeStr) return null;
   const parts = timeStr.split(/\s*-\s*/);
-  const start = parseTime(parts[0]);
+  const startRaw = parts[0];
+  const endRaw = parts[1] || '';
+  const startHasSuffix = /AM|PM/i.test(startRaw);
+  const endSuffix = (endRaw.match(/(AM|PM)/i) || [])[1] || '';
+
+  let start = parseTime(startRaw);
   if (!start) return null;
-  let end = parts[1] ? parseTime(parts[1]) : null;
+
+  // If start has no AM/PM but end does, inherit it
+  if (!startHasSuffix && endSuffix) {
+    if (endSuffix.toUpperCase() === 'PM' && start.h < 12) start.h += 12;
+    if (endSuffix.toUpperCase() === 'AM' && start.h === 12) start.h = 0;
+  }
+  // If no suffix at all and hour <= 8, assume PM (tech events aren't at 6 AM)
+  if (!startHasSuffix && !endSuffix && start.h >= 1 && start.h <= 8) {
+    start.h += 12;
+  }
+
+  let end = endRaw ? parseTime(endRaw) : null;
   if (!end) {
     end = { h: start.h + 1, m: start.m };
     if (end.h > 23) end.h = 23;
   }
-  if (end.h < start.h) {
-    if (parts[1] && /PM/i.test(parts[1]) && !/PM/i.test(parts[0])) {
-      // already handled by parseTime
-    }
-  }
+  // Sanity: end should be after start
+  if (end.h < start.h) end.h = start.h + 1;
   return { startH: start.h, startM: start.m, endH: end.h, endM: end.m };
 }
 
