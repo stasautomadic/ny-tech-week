@@ -74,6 +74,8 @@
   <div class="person-toggle">
     <label><input type="checkbox" id="showStas" checked> Stas</label>
     <label><input type="checkbox" id="showAurel" checked> Aurel</label>
+    <label><input type="checkbox" id="showYes" checked> Yes</label>
+    <label><input type="checkbox" id="showPending" checked> Pending</label>
     <label><input type="checkbox" id="showConflicts" checked> Show Conflicts</label>
   </div>
 </div>
@@ -244,17 +246,34 @@ function findConflicts() {
   return conflicts;
 }
 
+function getEffectiveStatus(ev) {
+  if (ev.category === 'Swissnex') return 'yes';
+  if (ev.stas === 'Yes' || ev.aurel === 'Yes') return 'yes';
+  return 'pending';
+}
+
 function isVisible(ev) {
   const showStas = document.getElementById('showStas').checked;
   const showAurel = document.getElementById('showAurel').checked;
+  const showYes = document.getElementById('showYes').checked;
+  const showPending = document.getElementById('showPending').checked;
   const isSwissnex = ev.category === 'Swissnex';
-  if (isSwissnex) return true;
-  const stasGoing = ev.stas === 'Yes' || ev.stas === 'Pending';
-  const aurelGoing = ev.aurel === 'Yes' || ev.aurel === 'Pending';
-  if (showStas && showAurel) return stasGoing || aurelGoing || (!stasGoing && !aurelGoing);
-  if (showStas) return stasGoing || (!stasGoing && !aurelGoing);
-  if (showAurel) return aurelGoing || (!stasGoing && !aurelGoing);
-  return !stasGoing && !aurelGoing;
+
+  // Person filter
+  if (!isSwissnex) {
+    const stasGoing = ev.stas === 'Yes' || ev.stas === 'Pending';
+    const aurelGoing = ev.aurel === 'Yes' || ev.aurel === 'Pending';
+    const unassigned = !stasGoing && !aurelGoing;
+    const personMatch = (showStas && stasGoing) || (showAurel && aurelGoing) || unassigned;
+    if (!personMatch && (showStas || showAurel)) return false;
+  }
+
+  // Status filter
+  const status = getEffectiveStatus(ev);
+  if (status === 'yes' && !showYes) return false;
+  if (status === 'pending' && !showPending) return false;
+
+  return true;
 }
 
 function render() {
@@ -471,6 +490,8 @@ document.addEventListener('click', (e) => {
 document.getElementById('showConflicts').addEventListener('change', render);
 document.getElementById('showStas').addEventListener('change', render);
 document.getElementById('showAurel').addEventListener('change', render);
+document.getElementById('showYes').addEventListener('change', render);
+document.getElementById('showPending').addEventListener('change', render);
 
 document.getElementById('calendar').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:#666">Loading events from Airtable...</div>';
 
