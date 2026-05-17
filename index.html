@@ -244,6 +244,19 @@ function findConflicts() {
   return conflicts;
 }
 
+function isVisible(ev) {
+  const showStas = document.getElementById('showStas').checked;
+  const showAurel = document.getElementById('showAurel').checked;
+  const isSwissnex = ev.category === 'Swissnex';
+  if (isSwissnex) return true;
+  const stasGoing = ev.stas === 'Yes' || ev.stas === 'Pending';
+  const aurelGoing = ev.aurel === 'Yes' || ev.aurel === 'Pending';
+  if (showStas && showAurel) return stasGoing || aurelGoing || (!stasGoing && !aurelGoing);
+  if (showStas) return stasGoing || (!stasGoing && !aurelGoing);
+  if (showAurel) return aurelGoing || (!stasGoing && !aurelGoing);
+  return !stasGoing && !aurelGoing;
+}
+
 function render() {
   const cal = document.getElementById('calendar');
   const showConflicts = document.getElementById('showConflicts').checked;
@@ -296,7 +309,7 @@ function render() {
       col.appendChild(line);
     }
 
-    const dayEvents = events.filter(e => e.date === d.key);
+    const dayEvents = events.filter(e => e.date === d.key && isVisible(e));
 
     // Detect overlapping events for column layout
     const sorted = [...dayEvents].sort((a, b) => (a.startH * 60 + a.startM) - (b.startH * 60 + b.startM));
