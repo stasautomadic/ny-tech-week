@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NY Tech Week 2026 - Schedule</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0f; color: #e0e0e0; }
+
+  .header { padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1a1a2e; }
+  .header h1 { font-size: 22px; font-weight: 600; color: #fff; }
+  .header h1 span { color: #6366f1; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; padding: 16px 32px; border-bottom: 1px solid #1a1a2e; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #999; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  .filters { display: none; }
+
+  .calendar { display: grid; grid-template-columns: 60px repeat(6, 1fr); padding: 0 16px 32px; overflow-x: auto; }
+
+  .day-header { padding: 16px 8px; text-align: center; font-size: 13px; font-weight: 600; color: #999; border-bottom: 1px solid #1a1a2e; position: sticky; top: 0; background: #0a0a0f; z-index: 10; }
+  .day-header .date { font-size: 20px; color: #fff; margin-top: 2px; }
+
+  .time-col { position: relative; }
+  .time-label { position: absolute; right: 8px; font-size: 11px; color: #555; transform: translateY(-7px); }
+
+  .day-col { position: relative; border-left: 1px solid #111; min-height: 100%; }
+  .hour-line { position: absolute; left: 0; right: 0; border-top: 1px solid #111; }
+
+  .event { position: absolute; left: 3px; right: 3px; border-radius: 6px; padding: 6px 8px; cursor: pointer; overflow: hidden; transition: all 0.2s; z-index: 2; border: 1px solid transparent; }
+  .event:hover { transform: scale(1.02); z-index: 20; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+  .event .event-time { font-size: 10px; opacity: 0.8; margin-bottom: 2px; }
+  .event .event-title { font-size: 11px; font-weight: 600; line-height: 1.3; }
+  .event .event-host { font-size: 10px; opacity: 0.7; margin-top: 2px; }
+  .event .event-status { font-size: 9px; margin-top: 3px; padding: 1px 5px; border-radius: 3px; display: inline-block; }
+
+  .event.swissnex { background: #1a1520; border-color: #8b5cf6; color: #d4b8ff; }
+  .event.approved { background: #0a1a15; border-color: #10b981; color: #a7f3d0; }
+  .event.pending { background: #1a1508; border-color: #f59e0b; color: #fde68a; }
+  .event.not-rsvpd { background: #0f1219; border-color: #3b82f6; color: #93c5fd; }
+  .event.undecided { background: #1a1010; border-color: #6b7280; color: #d1d5db; }
+
+  .event.has-conflict { animation: pulse-border 2s infinite; }
+  @keyframes pulse-border { 0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 50% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2); } }
+  .event.has-conflict::after { content: '⚠'; position: absolute; top: 4px; right: 6px; font-size: 12px; }
+
+  .conflict-marker { position: absolute; left: 0; right: 0; background: rgba(239, 68, 68, 0.08); border-left: 2px solid rgba(239, 68, 68, 0.3); z-index: 1; border-radius: 4px; pointer-events: none; }
+
+  .tooltip { display: none; position: fixed; background: #1a1a2e; border: 1px solid #333; border-radius: 10px; padding: 16px; max-width: 340px; z-index: 100; box-shadow: 0 8px 30px rgba(0,0,0,0.6); }
+  .tooltip.visible { display: block; }
+  .tooltip h3 { font-size: 14px; color: #fff; margin-bottom: 8px; }
+  .tooltip p { font-size: 12px; color: #aaa; line-height: 1.5; margin-bottom: 4px; }
+  .tooltip .tip-label { color: #666; }
+  .tooltip .tip-conflict { color: #ef4444; font-weight: 600; margin-top: 8px; font-size: 12px; }
+  .tooltip .tip-link { display: inline-block; margin-top: 10px; padding: 6px 14px; background: #6366f1; color: #fff; border-radius: 6px; text-decoration: none; font-size: 12px; }
+  .tooltip .tip-link:hover { background: #4f46e5; }
+
+  .stats { display: flex; gap: 24px; padding: 16px 32px; border-bottom: 1px solid #1a1a2e; }
+  .stat { text-align: center; }
+  .stat .stat-num { font-size: 24px; font-weight: 700; color: #fff; }
+  .stat .stat-label { font-size: 11px; color: #666; margin-top: 2px; }
+
+  .person-toggle { display: flex; gap: 8px; align-items: center; }
+  .person-toggle label { font-size: 12px; color: #999; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+  .person-toggle input { accent-color: #6366f1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>NY Tech Week</span> 2026 Schedule</h1>
+  <div class="person-toggle">
+    <label><input type="checkbox" id="showStas" checked> Stas</label>
+    <label><input type="checkbox" id="showAurel" checked> Aurel</label>
+    <label><input type="checkbox" id="showConflicts" checked> Show Conflicts</label>
+  </div>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> Swissnex (Mandatory)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> Approved</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Pending</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div> Not RSVP'd</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div> Undecided</div>
+  <div class="legend-item"><span style="font-size:12px">⚠</span> Conflict</div>
+</div>
+
+<div class="filters" id="filters"></div>
+
+<div class="calendar" id="calendar"></div>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const API_URL = '/api/events';
+
+let events = [];
+
+function parseTime(timeStr) {
+  if (!timeStr) return null;
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  if (!match) {
+    const hourOnly = timeStr.match(/^(\d{1,2})\s*(AM|PM)/i);
+    if (hourOnly) {
+      let h = parseInt(hourOnly[1]);
+      if (hourOnly[2] && hourOnly[2].toUpperCase() === 'PM' && h < 12) h += 12;
+      if (hourOnly[2] && hourOnly[2].toUpperCase() === 'AM' && h === 12) h = 0;
+      return { h, m: 0 };
+    }
+    return null;
+  }
+  let h = parseInt(match[1]);
+  const m = parseInt(match[2]);
+  if (match[3]) {
+    if (match[3].toUpperCase() === 'PM' && h < 12) h += 12;
+    if (match[3].toUpperCase() === 'AM' && h === 12) h = 0;
+  }
+  return { h, m };
+}
+
+function parseTimeRange(timeStr) {
+  if (!timeStr) return null;
+  const parts = timeStr.split(/\s*-\s*/);
+  const start = parseTime(parts[0]);
+  if (!start) return null;
+  let end = parts[1] ? parseTime(parts[1]) : null;
+  if (!end) {
+    end = { h: start.h + 1, m: start.m };
+    if (end.h > 23) end.h = 23;
+  }
+  if (end.h < start.h) {
+    if (parts[1] && /PM/i.test(parts[1]) && !/PM/i.test(parts[0])) {
+      // already handled by parseTime
+    }
+  }
+  return { startH: start.h, startM: start.m, endH: end.h, endM: end.m };
+}
+
+async function fetchAirtableEvents() {
+  const res = await fetch(API_URL);
+  const allRecords = await res.json();
+
+  return allRecords.map((r, i) => {
+    const f = r.fields;
+    const timeRange = parseTimeRange(f['Time'] || '');
+    if (!f['Date'] || !timeRange) return null;
+
+    const date = f['Date'];
+    const dayNames = { 0:'Sun', 1:'Mon', 2:'Tue', 3:'Wed', 4:'Thu', 5:'Fri', 6:'Sat' };
+    const day = dayNames[new Date(date + 'T12:00:00').getDay()] || f['Day'] || '';
+
+    const isSwissnex = (f['Event'] || '').toUpperCase().includes('SWISSNEX');
+    const rsvpStatus = f['RSVP Status'] || '';
+    let status = 'Not RSVP\'d';
+    if (isSwissnex) status = 'Confirmed';
+    else if (/approved/i.test(rsvpStatus)) status = 'Approved';
+    else if (/confirmed/i.test(rsvpStatus)) status = 'Confirmed';
+    else if (/pending/i.test(rsvpStatus)) status = 'Pending';
+    else if (/undecided/i.test(rsvpStatus)) status = 'Undecided';
+
+    const category = isSwissnex ? 'Swissnex' : (f['Category'] || 'Other');
+
+    return {
+      id: f['#'] || `at-${i}`,
+      title: f['Event'] || 'Untitled',
+      date,
+      day,
+      ...timeRange,
+      location: f['Location'] || 'TBD',
+      host: f['Host'] || '',
+      category,
+      stas: f['Stas'] || '',
+      aurel: f['Aurel'] || '',
+      status,
+      link: f['Link'] || '',
+      notes: f['Notes'] || '',
+    };
+  }).filter(Boolean);
+}
+
+const days = [
+  { key: '2026-06-01', label: 'Mon', date: '1' },
+  { key: '2026-06-02', label: 'Tue', date: '2' },
+  { key: '2026-06-03', label: 'Wed', date: '3' },
+  { key: '2026-06-04', label: 'Thu', date: '4' },
+  { key: '2026-06-05', label: 'Fri', date: '5' },
+  { key: '2026-06-06', label: 'Sat', date: '6' },
+];
+
+const START_HOUR = 8;
+const END_HOUR = 23;
+const HOUR_HEIGHT = 60;
+const categories = [...new Set(events.map(e => e.category))];
+
+let activeFilters = new Set(['all']);
+
+function timeToY(h, m) {
+  return (h - START_HOUR) * HOUR_HEIGHT + (m / 60) * HOUR_HEIGHT;
+}
+
+function getStatusClass(status) {
+  if (status === 'Confirmed') return 'swissnex';
+  if (status === 'Approved') return 'approved';
+  if (status === 'Pending') return 'pending';
+  if (status === 'Undecided') return 'undecided';
+  return 'not-rsvpd';
+}
+
+function findConflicts() {
+  const conflicts = [];
+  for (let i = 0; i < events.length; i++) {
+    for (let j = i + 1; j < events.length; j++) {
+      const a = events[i], b = events[j];
+      if (a.date !== b.date) continue;
+      const aStart = a.startH * 60 + a.startM;
+      const aEnd = a.endH * 60 + a.endM;
+      const bStart = b.startH * 60 + b.startM;
+      const bEnd = b.endH * 60 + b.endM;
+      if (aStart < bEnd && bStart < aEnd) {
+        if (a.stas === 'Yes' || a.status === 'Confirmed' || a.status === 'Pending' || a.status === 'Approved') {
+          if (b.stas === 'Yes' || b.status === 'Confirmed' || b.status === 'Pending' || b.status === 'Approved') {
+            conflicts.push([a.id, b.id]);
+          }
+        }
+      }
+    }
+  }
+  return conflicts;
+}
+
+function render() {
+  const cal = document.getElementById('calendar');
+  const showConflicts = document.getElementById('showConflicts').checked;
+  const conflicts = findConflicts();
+  const conflictIds = new Set(conflicts.flat());
+
+  cal.innerHTML = '';
+  const totalHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
+
+  // Time column
+  const timeCol = document.createElement('div');
+  timeCol.className = 'time-col';
+  timeCol.style.position = 'relative';
+  timeCol.style.height = totalHeight + 'px';
+  // empty header
+  const th = document.createElement('div');
+  th.className = 'day-header';
+  th.innerHTML = '<span style="color:#555">EST</span>';
+  cal.appendChild(th);
+
+  for (let h = START_HOUR; h <= END_HOUR; h++) {
+    const label = document.createElement('div');
+    label.className = 'time-label';
+    label.style.top = ((h - START_HOUR) * HOUR_HEIGHT) + 'px';
+    label.textContent = h <= 12 ? (h + ' AM') : ((h - 12) + ' PM');
+    if (h === 12) label.textContent = '12 PM';
+    timeCol.appendChild(label);
+  }
+
+  // Day headers
+  days.forEach(d => {
+    const dh = document.createElement('div');
+    dh.className = 'day-header';
+    dh.innerHTML = `${d.label}<div class="date">Jun ${d.date}</div>`;
+    cal.appendChild(dh);
+  });
+
+  cal.appendChild(timeCol);
+
+  // Day columns
+  days.forEach(d => {
+    const col = document.createElement('div');
+    col.className = 'day-col';
+    col.style.height = totalHeight + 'px';
+
+    for (let h = START_HOUR; h <= END_HOUR; h++) {
+      const line = document.createElement('div');
+      line.className = 'hour-line';
+      line.style.top = ((h - START_HOUR) * HOUR_HEIGHT) + 'px';
+      col.appendChild(line);
+    }
+
+    const dayEvents = events.filter(e => e.date === d.key);
+
+    // Detect overlapping events for column layout
+    const sorted = [...dayEvents].sort((a, b) => (a.startH * 60 + a.startM) - (b.startH * 60 + b.startM));
+    const columns = [];
+
+    sorted.forEach(ev => {
+      // show all events
+
+      let placed = false;
+      for (let c = 0; c < columns.length; c++) {
+        const last = columns[c][columns[c].length - 1];
+        const lastEnd = last.endH * 60 + last.endM;
+        const evStart = ev.startH * 60 + ev.startM;
+        if (evStart >= lastEnd) {
+          columns[c].push(ev);
+          ev._col = c;
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        ev._col = columns.length;
+        columns.push([ev]);
+      }
+    });
+
+    const numCols = columns.length || 1;
+
+    dayEvents.forEach(ev => {
+      // show all
+
+      const top = timeToY(ev.startH, ev.startM);
+      const height = Math.max(timeToY(ev.endH, ev.endM) - top, 24);
+      const hasConflict = conflictIds.has(ev.id) && showConflicts;
+
+      const colIdx = ev._col || 0;
+      const colWidth = 100 / numCols;
+
+      const el = document.createElement('div');
+      el.className = `event ${getStatusClass(ev.status)} ${hasConflict ? 'has-conflict' : ''}`;
+      el.style.top = top + 'px';
+      el.style.height = height + 'px';
+      el.style.left = (colIdx * colWidth) + '%';
+      el.style.width = (colWidth - 1) + '%';
+      el.style.right = 'auto';
+
+      let inner = `<div class="event-time">${formatTime(ev.startH, ev.startM)}</div>`;
+      inner += `<div class="event-title">${ev.title}</div>`;
+      if (height > 40) inner += `<div class="event-host">${ev.host}</div>`;
+      if (height > 55) inner += `<div class="event-status" style="background:rgba(255,255,255,0.1)">${ev.status}</div>`;
+      el.innerHTML = inner;
+
+      el.addEventListener('click', (e) => showTooltip(e, ev, hasConflict, conflicts));
+      col.appendChild(el);
+    });
+
+    cal.appendChild(col);
+  });
+
+  renderStats(conflictIds);
+}
+
+function formatTime(h, m) {
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const hour = h > 12 ? h - 12 : h;
+  return `${hour}:${String(m).padStart(2, '0')} ${suffix}`;
+}
+
+function showTooltip(e, ev, hasConflict, conflicts) {
+  const tip = document.getElementById('tooltip');
+
+  const conflictWith = conflicts
+    .filter(c => c.includes(ev.id))
+    .map(c => {
+      const otherId = c[0] === ev.id ? c[1] : c[0];
+      return events.find(x => x.id === otherId);
+    })
+    .filter(Boolean);
+
+  let html = `<h3>${ev.title}</h3>`;
+  html += `<p><span class="tip-label">Time:</span> ${formatTime(ev.startH, ev.startM)} - ${formatTime(ev.endH, ev.endM)}</p>`;
+  html += `<p><span class="tip-label">Location:</span> ${ev.location}</p>`;
+  html += `<p><span class="tip-label">Host:</span> ${ev.host}</p>`;
+  html += `<p><span class="tip-label">Category:</span> ${ev.category}</p>`;
+  html += `<p><span class="tip-label">Status:</span> ${ev.status}</p>`;
+  html += `<p><span class="tip-label">Stas:</span> ${ev.stas || '-'} | <span class="tip-label">Aurel:</span> ${ev.aurel || '-'}</p>`;
+  if (ev.notes) html += `<p style="margin-top:8px;color:#ccc">${ev.notes}</p>`;
+
+  if (hasConflict && conflictWith.length) {
+    html += `<p class="tip-conflict">⚠ CONFLICTS WITH:</p>`;
+    conflictWith.forEach(c => {
+      html += `<p class="tip-conflict" style="font-weight:400">- ${c.title} (${formatTime(c.startH, c.startM)})</p>`;
+    });
+  }
+
+  if (ev.link) {
+    html += `<a class="tip-link" href="${ev.link}" target="_blank">Open Event Page ↗</a>`;
+  }
+
+  tip.innerHTML = html;
+  tip.classList.add('visible');
+
+  const rect = tip.getBoundingClientRect();
+  let x = e.clientX + 15;
+  let y = e.clientY - 20;
+  if (x + 350 > window.innerWidth) x = e.clientX - 360;
+  if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 10;
+  if (y < 10) y = 10;
+  tip.style.left = x + 'px';
+  tip.style.top = y + 'px';
+}
+
+function renderStats(conflictIds) {
+  const stats = document.getElementById('stats');
+  const total = events.filter(e => e.category !== 'Swissnex').length;
+  const swissnex = events.filter(e => e.category === 'Swissnex').length;
+  const confirmed = events.filter(e => e.status === 'Approved' || e.status === 'Confirmed').length;
+  const pending = events.filter(e => e.status === 'Pending').length;
+  const conflictCount = conflictIds.size;
+
+  stats.innerHTML = `
+    <div class="stat"><div class="stat-num">${total}</div><div class="stat-label">Tech Week Events</div></div>
+    <div class="stat"><div class="stat-num">${swissnex}</div><div class="stat-label">Swissnex Sessions</div></div>
+    <div class="stat"><div class="stat-num">${confirmed}</div><div class="stat-label">Confirmed</div></div>
+    <div class="stat"><div class="stat-num">${pending}</div><div class="stat-label">Pending</div></div>
+    <div class="stat"><div class="stat-num" style="color:${conflictCount > 0 ? '#ef4444' : '#10b981'}">${conflictCount}</div><div class="stat-label">Conflicts</div></div>
+  `;
+}
+
+function renderFilters() {
+  const container = document.getElementById('filters');
+  const cats = ['all', ...new Set(events.map(e => e.category))];
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = `filter-btn ${activeFilters.has(cat) ? 'active' : ''}`;
+    btn.textContent = cat === 'all' ? 'All' : cat;
+    btn.addEventListener('click', () => {
+      if (cat === 'all') {
+        activeFilters = new Set(['all']);
+      } else {
+        activeFilters.delete('all');
+        if (activeFilters.has(cat)) activeFilters.delete(cat);
+        else activeFilters.add(cat);
+        if (activeFilters.size === 0) activeFilters.add('all');
+      }
+      renderFilters();
+      render();
+    });
+    container.appendChild(btn);
+  });
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.event') && !e.target.closest('.tooltip')) {
+    document.getElementById('tooltip').classList.remove('visible');
+  }
+});
+
+document.getElementById('showConflicts').addEventListener('change', render);
+document.getElementById('showStas').addEventListener('change', render);
+document.getElementById('showAurel').addEventListener('change', render);
+
+document.getElementById('calendar').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:#666">Loading events from Airtable...</div>';
+
+fetchAirtableEvents().then(data => {
+  events = data;
+  renderFilters();
+  render();
+}).catch(err => {
+  document.getElementById('calendar').innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;color:#ef4444">Failed to load: ${err.message}</div>`;
+});
+</script>
+</body>
+</html>
