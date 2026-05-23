@@ -77,6 +77,7 @@
     <label><input type="checkbox" id="showYes" checked> Yes</label>
     <label><input type="checkbox" id="showPending" checked> Pending</label>
     <label><input type="checkbox" id="showConflicts" checked> Show Conflicts</label>
+    <button id="refreshBtn" onclick="refreshData()" style="margin-left:12px;padding:5px 14px;background:#1a1a2e;border:1px solid #333;border-radius:6px;color:#999;font-size:12px;cursor:pointer;transition:all 0.2s">↻ Refresh</button>
   </div>
 </div>
 
@@ -492,6 +493,24 @@ document.getElementById('showStas').addEventListener('change', render);
 document.getElementById('showAurel').addEventListener('change', render);
 document.getElementById('showYes').addEventListener('change', render);
 document.getElementById('showPending').addEventListener('change', render);
+
+async function refreshData() {
+  const btn = document.getElementById('refreshBtn');
+  btn.textContent = '↻ Refreshing...';
+  btn.style.color = '#6366f1';
+  try {
+    const data = await fetchAirtableEvents();
+    events = data;
+    render();
+    btn.textContent = '↻ Updated!';
+    btn.style.color = '#10b981';
+    setTimeout(() => { btn.textContent = '↻ Refresh'; btn.style.color = '#999'; }, 1500);
+  } catch (err) {
+    btn.textContent = '↻ Failed';
+    btn.style.color = '#ef4444';
+    setTimeout(() => { btn.textContent = '↻ Refresh'; btn.style.color = '#999'; }, 2000);
+  }
+}
 
 document.getElementById('calendar').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:#666">Loading events from Airtable...</div>';
 
