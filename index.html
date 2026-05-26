@@ -279,15 +279,16 @@ function isVisible(ev) {
   const showAurel = document.getElementById('showAurel').checked;
   const showYes = document.getElementById('showYes').checked;
   const showPending = document.getElementById('showPending').checked;
+
+  // Person filter: must match at least one checked person
+  const stasIn = ev.stas === 'Yes' || ev.stas === 'Pending';
+  const aurelIn = ev.aurel === 'Yes' || ev.aurel === 'Pending';
   const isSwissnex = ev.category === 'Swissnex';
 
-  // Person filter
+  if (!showStas && !showAurel) return false;
   if (!isSwissnex) {
-    const stasGoing = ev.stas === 'Yes' || ev.stas === 'Pending';
-    const aurelGoing = ev.aurel === 'Yes' || ev.aurel === 'Pending';
-    const unassigned = !stasGoing && !aurelGoing;
-    const personMatch = (showStas && stasGoing) || (showAurel && aurelGoing) || unassigned;
-    if (!personMatch && (showStas || showAurel)) return false;
+    const personMatch = (showStas && stasIn) || (showAurel && aurelIn);
+    if (!personMatch) return false;
   }
 
   // Status filter
