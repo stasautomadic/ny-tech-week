@@ -37,10 +37,13 @@
   .event .event-status { font-size: 9px; margin-top: 3px; padding: 1px 5px; border-radius: 3px; display: inline-block; }
 
   .event.swissnex { background: #1a1520; border-color: #8b5cf6; color: #d4b8ff; }
-  .event.approved { background: #0a1a15; border-color: #10b981; color: #a7f3d0; }
-  .event.pending { background: #1a1508; border-color: #f59e0b; color: #fde68a; }
-  .event.not-rsvpd { background: #0f1219; border-color: #3b82f6; color: #93c5fd; }
-  .event.undecided { background: #1a1010; border-color: #6b7280; color: #d1d5db; }
+  .event.stas-only { background: #0f0f1f; border-color: #6366f1; color: #c7d2fe; }
+  .event.aurel-only { background: #0a1a1a; border-color: #14b8a6; color: #99f6e4; }
+  .event.both { background: linear-gradient(135deg, #0f0f1f, #0a1a1a); border-color: #6366f1; color: #d0e0ef; box-shadow: inset 0 0 0 1px #14b8a6; }
+  .event.pending-status { border-style: dashed; opacity: 0.7; }
+  .event.nobody { background: #111118; border-color: #374151; color: #9ca3af; border-style: dotted; opacity: 0.5; }
+
+  .event .both-badge { position: absolute; top: 3px; right: 5px; font-size: 11px; line-height: 1; }
 
   .event.has-conflict { animation: pulse-border 2s infinite; }
   @keyframes pulse-border { 0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 50% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2); } }
@@ -84,11 +87,11 @@
 <div class="stats" id="stats"></div>
 
 <div class="legend">
-  <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> Swissnex (Mandatory)</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> Approved</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Pending</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div> Not RSVP'd</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div> Undecided</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> Swissnex</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div> Stas</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#14b8a6"></div> Aurel</div>
+  <div class="legend-item"><span style="font-size:12px">👥</span> Both going</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#374151; border: 1px dashed #666;"></div> Pending</div>
   <div class="legend-item"><span style="font-size:12px">⚠</span> Conflict</div>
 </div>
 
@@ -217,12 +220,30 @@ function timeToY(h, m) {
   return (h - START_HOUR) * HOUR_HEIGHT + (m / 60) * HOUR_HEIGHT;
 }
 
-function getStatusClass(status) {
-  if (status === 'Confirmed') return 'swissnex';
-  if (status === 'Approved') return 'approved';
-  if (status === 'Pending') return 'pending';
-  if (status === 'Undecided') return 'undecided';
-  return 'not-rsvpd';
+function getPersonClass(ev) {
+  if (ev.category === 'Swissnex') return 'swissnex';
+  const stasYes = ev.stas === 'Yes';
+  const aurelYes = ev.aurel === 'Yes';
+  const stasPending = ev.stas === 'Pending';
+  const aurelPending = ev.aurel === 'Pending';
+  const stasIn = stasYes || stasPending;
+  const aurelIn = aurelYes || aurelPending;
+
+  let cls = '';
+  if (stasIn && aurelIn) cls = 'both';
+  else if (stasIn) cls = 'stas-only';
+  else if (aurelIn) cls = 'aurel-only';
+  else cls = 'nobody';
+
+  const anyConfirmed = stasYes || aurelYes;
+  if (!anyConfirmed && (stasPending || aurelPending)) cls += ' pending-status';
+
+  return cls;
+}
+
+function isBothConfirmed(ev) {
+  if (ev.category === 'Swissnex') return true;
+  return ev.stas === 'Yes' && ev.aurel === 'Yes';
 }
 
 function findConflicts() {
@@ -369,17 +390,22 @@ function render() {
       const colWidth = 100 / numCols;
 
       const el = document.createElement('div');
-      el.className = `event ${getStatusClass(ev.status)} ${hasConflict ? 'has-conflict' : ''}`;
+      el.className = `event ${getPersonClass(ev)} ${hasConflict ? 'has-conflict' : ''}`;
       el.style.top = top + 'px';
       el.style.height = height + 'px';
       el.style.left = (colIdx * colWidth) + '%';
       el.style.width = (colWidth - 1) + '%';
       el.style.right = 'auto';
 
-      let inner = `<div class="event-time">${formatTime(ev.startH, ev.startM)}</div>`;
+      const bothBadge = isBothConfirmed(ev) ? '<div class="both-badge">👥</div>' : '';
+      let inner = bothBadge;
+      inner += `<div class="event-time">${formatTime(ev.startH, ev.startM)}</div>`;
       inner += `<div class="event-title">${ev.title}</div>`;
       if (height > 40) inner += `<div class="event-host">${ev.host}</div>`;
-      if (height > 55) inner += `<div class="event-status" style="background:rgba(255,255,255,0.1)">${ev.status}</div>`;
+      if (height > 55) {
+        const who = [ev.stas === 'Yes' ? 'S✓' : ev.stas === 'Pending' ? 'S?' : '', ev.aurel === 'Yes' ? 'A✓' : ev.aurel === 'Pending' ? 'A?' : ''].filter(Boolean).join(' ');
+        inner += `<div class="event-status" style="background:rgba(255,255,255,0.1)">${who}</div>`;
+      }
       el.innerHTML = inner;
 
       el.addEventListener('click', (e) => showTooltip(e, ev, hasConflict, conflicts));
@@ -446,15 +472,17 @@ function renderStats(conflictIds) {
   const stats = document.getElementById('stats');
   const total = events.filter(e => e.category !== 'Swissnex').length;
   const swissnex = events.filter(e => e.category === 'Swissnex').length;
-  const confirmed = events.filter(e => e.status === 'Approved' || e.status === 'Confirmed').length;
-  const pending = events.filter(e => e.status === 'Pending').length;
+  const stasYes = events.filter(e => e.stas === 'Yes').length;
+  const aurelYes = events.filter(e => e.aurel === 'Yes').length;
+  const bothYes = events.filter(e => e.stas === 'Yes' && e.aurel === 'Yes').length;
   const conflictCount = conflictIds.size;
 
   stats.innerHTML = `
     <div class="stat"><div class="stat-num">${total}</div><div class="stat-label">Tech Week Events</div></div>
     <div class="stat"><div class="stat-num">${swissnex}</div><div class="stat-label">Swissnex Sessions</div></div>
-    <div class="stat"><div class="stat-num">${confirmed}</div><div class="stat-label">Confirmed</div></div>
-    <div class="stat"><div class="stat-num">${pending}</div><div class="stat-label">Pending</div></div>
+    <div class="stat"><div class="stat-num" style="color:#6366f1">${stasYes}</div><div class="stat-label">Stas Confirmed</div></div>
+    <div class="stat"><div class="stat-num" style="color:#14b8a6">${aurelYes}</div><div class="stat-label">Aurel Confirmed</div></div>
+    <div class="stat"><div class="stat-num">${bothYes}</div><div class="stat-label">👥 Both Going</div></div>
     <div class="stat"><div class="stat-num" style="color:${conflictCount > 0 ? '#ef4444' : '#10b981'}">${conflictCount}</div><div class="stat-label">Conflicts</div></div>
   `;
 }
